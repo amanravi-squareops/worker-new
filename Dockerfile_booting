@@ -11,7 +11,7 @@ RUN dotnet restore -a $TARGETARCH
 COPY . .
 # RUN dotnet publish -c release -o /app -a $TARGETARCH --self-contained false --no-restore
 
-CMD ["dotnet", "run"]
+CMD ["dotnet", "run" , "--verbosity" , "m"]
 
 
 # # app image
