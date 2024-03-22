@@ -26,11 +26,12 @@ namespace Worker
                 var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
                 var dbUsername = Environment.GetEnvironmentVariable("DB_USERNAME");
                 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+                var databaseName = Environment.GetEnvironmentVariable("DB_NAME");
                 var hostname = Environment.GetEnvironmentVariable("REDIS_HOST");
 
                 Console.WriteLine($"REDIS_HOSTNAME: {redisHostname}");
 
-                var pgsql = OpenDbConnection($"Server={dbServer};Username={dbUsername};Password={dbPassword}");
+                var pgsql = OpenDbConnection($"Server={dbServer};Username={dbUsername};Password={dbPassword};Database={databaseName}");
 
                 // Keep alive is not implemented in Npgsql yet. This workaround was recommended:
                 // https://github.com/npgsql/npgsql/issues/1214#issuecomment-235828359
@@ -59,7 +60,7 @@ namespace Worker
                         if (!pgsql.State.Equals(System.Data.ConnectionState.Open))
                         {
                             Console.WriteLine("Reconnecting DB");
-                            pgsql = OpenDbConnection($"Server={dbServer};Username={dbUsername};Password={dbPassword};");
+                            pgsql = OpenDbConnection($"Server={dbServer};Username={dbUsername};Password={dbPassword};Database={databaseName}");
                         }
                         else
                         { // Normal +1 vote requested
@@ -91,11 +92,12 @@ namespace Worker
                     connection.Open();
                     Console.WriteLine("Connected to PostgreSQL.");
 
+                    // Ensure that the votes table exists
                     using (var command = connection.CreateCommand())
                     {
-                        command.CommandText = @"CREATE DATABASE IF NOT EXISTS mydatabase";
+                        command.CommandText = $"CREATE DATABASE IF NOT EXISTS {DatabaseName}";
                         command.ExecuteNonQuery();
-                        Console.WriteLine("Database created or already exists.");
+                        Console.WriteLine($"Database '{DatabaseName}' created or already exists.");
                     }
 
                     break;
@@ -151,7 +153,7 @@ namespace Worker
             var command = connection.CreateCommand();
             try
             {
-                command.CommandText = "INSERT INTO votes (id, vote) VALUES (@id, @vote)";
+                command.CommandText = $"INSERT INTO votes (id, vote) VALUES (@id, @vote)";
                 command.Parameters.AddWithValue("@id", voterId);
                 command.Parameters.AddWithValue("@vote", vote);
                 command.ExecuteNonQuery();
