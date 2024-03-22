@@ -13,6 +13,8 @@ namespace Worker
 {
     public class Program
     {
+        private static string _databaseName; // Declare databaseName at class level
+
         public static int Main(string[] args)
         {
             try
@@ -26,12 +28,12 @@ namespace Worker
                 var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
                 var dbUsername = Environment.GetEnvironmentVariable("DB_USERNAME");
                 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
-                var databaseName = Environment.GetEnvironmentVariable("DB_NAME");
+                _databaseName = Environment.GetEnvironmentVariable("DB_NAME"); // Assign value to _databaseName
                 var hostname = Environment.GetEnvironmentVariable("REDIS_HOST");
 
                 Console.WriteLine($"REDIS_HOSTNAME: {redisHostname}");
 
-                var pgsql = OpenDbConnection($"Server={dbServer};Username={dbUsername};Password={dbPassword};Database={databaseName}");
+                var pgsql = OpenDbConnection($"Server={dbServer};Username={dbUsername};Password={dbPassword};Database={_databaseName}"); // Use _databaseName
 
                 // Keep alive is not implemented in Npgsql yet. This workaround was recommended:
                 // https://github.com/npgsql/npgsql/issues/1214#issuecomment-235828359
@@ -60,7 +62,7 @@ namespace Worker
                         if (!pgsql.State.Equals(System.Data.ConnectionState.Open))
                         {
                             Console.WriteLine("Reconnecting DB");
-                            pgsql = OpenDbConnection($"Server={dbServer};Username={dbUsername};Password={dbPassword};Database={databaseName}");
+                            pgsql = OpenDbConnection($"Server={dbServer};Username={dbUsername};Password={dbPassword};Database={_databaseName}"); // Use _databaseName
                         }
                         else
                         { // Normal +1 vote requested
@@ -95,9 +97,9 @@ namespace Worker
                     // Ensure that the votes table exists
                     using (var command = connection.CreateCommand())
                     {
-                        command.CommandText = $"CREATE DATABASE IF NOT EXISTS {databaseName}";
+                        command.CommandText = $"CREATE DATABASE IF NOT EXISTS {_databaseName}"; // Use _databaseName
                         command.ExecuteNonQuery();
-                        Console.WriteLine($"Database '{databaseName}' created or already exists.");
+                        Console.WriteLine($"Database '{_databaseName}' created or already exists."); // Use _databaseName
                     }
 
                     break;
@@ -161,7 +163,8 @@ namespace Worker
             }
             catch (DbException ex)
             {
-                Console.Error.WriteLine($"Error updating vote in PostgreSQL: {ex.Message}");
+                Console.Error.WriteLine($"Error updating vote in PostgreSQL: {ex.Message}"
+                );
             }
             finally
             {
