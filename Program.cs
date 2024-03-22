@@ -95,9 +95,9 @@ namespace Worker
                     // Ensure that the votes table exists
                     using (var command = connection.CreateCommand())
                     {
-                        command.CommandText = $"CREATE DATABASE IF NOT EXISTS {DatabaseName}";
+                        command.CommandText = $"CREATE DATABASE IF NOT EXISTS {databaseName}";
                         command.ExecuteNonQuery();
-                        Console.WriteLine($"Database '{DatabaseName}' created or already exists.");
+                        Console.WriteLine($"Database '{databaseName}' created or already exists.");
                     }
 
                     break;
