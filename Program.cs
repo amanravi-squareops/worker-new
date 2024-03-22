@@ -114,27 +114,39 @@ namespace Worker
             return connection;
         }
 
-        private static ConnectionMultiplexer OpenRedisConnection(string hostname)
-        {
-            // Use IP address to workaround https://github.com/StackExchange/StackExchange.Redis/issues/410
-	    
-	    var ipAddress = GetIp(hostname);
-            Console.WriteLine($"Found redis at {ipAddress}");
+private static ConnectionMultiplexer OpenRedisConnection()
+{
+    string hostname = Environment.GetEnvironmentVariable("REDIS_HOSTNAME") ?? "localhost";
+    string password = Environment.GetEnvironmentVariable("REDIS_PASSWORD"); // Assuming password is optional
 
-            while (true)
-            {
-                try
-                {
-                    Console.Error.WriteLine("Connecting to redis");
-                    return ConnectionMultiplexer.Connect(ipAddress);
-                }
-                catch (RedisConnectionException)
-                {
-                    Console.Error.WriteLine("Waiting for redis");
-                    Thread.Sleep(1000);
-                }
-            }
+    var configurationOptions = new ConfigurationOptions
+    {
+        EndPoints = { hostname },
+        Password = password,
+        AbortOnConnectFail = false,
+        // Additional configuration options as needed
+    };
+
+    Console.WriteLine($"Connecting to Redis at {hostname}");
+    while (true)
+    {
+        try
+        {
+            return ConnectionMultiplexer.Connect(configurationOptions);
         }
+        catch (RedisConnectionException)
+        {
+            Console.Error.WriteLine("Waiting for Redis, retrying...");
+            Thread.Sleep(1000); // Consider implementing a more sophisticated retry logic
+        }
+    }
+}
+
+
+
+
+
+
 
         private static string GetIp(string hostname)
             => Dns.GetHostEntryAsync(hostname)
