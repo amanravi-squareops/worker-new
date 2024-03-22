@@ -81,7 +81,7 @@ namespace Worker
 
         private static NpgsqlConnection OpenDbConnection(string connectionString)
         {
-            NpgsqlConnection connection;
+            NpgsqlConnection connection = null;
 
             while (true)
             {
@@ -89,35 +89,39 @@ namespace Worker
                 {
                     connection = new NpgsqlConnection(connectionString);
                     connection.Open();
+                    Console.WriteLine("Connected to PostgreSQL.");
+
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.CommandText = @"CREATE DATABASE IF NOT EXISTS mydatabase";
+                        command.ExecuteNonQuery();
+                        Console.WriteLine("Database created or already exists.");
+                    }
+
                     break;
                 }
                 catch (SocketException)
                 {
-                    Console.Error.WriteLine("Waiting for db");
+                    Console.Error.WriteLine("Waiting for PostgreSQL.");
                     Thread.Sleep(1000);
                 }
-                catch (DbException)
+                catch (DbException ex)
                 {
-                    Console.Error.WriteLine("Waiting for db");
+                    Console.Error.WriteLine($"Error connecting to PostgreSQL: {ex.Message}");
                     Thread.Sleep(1000);
+                }
+                finally
+                {
+                    connection?.Close();
                 }
             }
-
-            Console.Error.WriteLine("Connected to db");
-
-            var command = connection.CreateCommand();
-            command.CommandText = @"CREATE TABLE IF NOT EXISTS votes (
-                                        id VARCHAR(255) NOT NULL UNIQUE,
-                                        vote VARCHAR(255) NOT NULL
-                                    )";
-            command.ExecuteNonQuery();
 
             return connection;
         }
 
         private static ConnectionMultiplexer OpenRedisConnection(string hostname)
         {
-            string password = Environment.GetEnvironmentVariable("REDIS_PASSWORD"); // Assuming password is optional        
+            string password = Environment.GetEnvironmentVariable("REDIS_PASSWORD"); // Assuming password is optional
 
             var configurationOptions = new ConfigurationOptions
             {
@@ -151,11 +155,11 @@ namespace Worker
                 command.Parameters.AddWithValue("@id", voterId);
                 command.Parameters.AddWithValue("@vote", vote);
                 command.ExecuteNonQuery();
+                Console.WriteLine("Vote updated in PostgreSQL.");
             }
-            catch (DbException)
+            catch (DbException ex)
             {
-                command.CommandText = "UPDATE votes SET vote = @vote WHERE id = @id";
-                command.ExecuteNonQuery();
+                Console.Error.WriteLine($"Error updating vote in PostgreSQL: {ex.Message}");
             }
             finally
             {
