@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using Npgsql;
 using StackExchange.Redis;
 using DotNetEnv;
+
 namespace Worker
 {
     public class Program
@@ -16,21 +17,20 @@ namespace Worker
         {
             try
             {
-   
                 // Load environment variables from .env file
-		DotNetEnv.Env.Load();
+                DotNetEnv.Env.Load();
 
-		var redisHostname = Environment.GetEnvironmentVariable("REDIS_HOSTNAME");
-	       	var redisConn = OpenRedisConnection(redisHostname);
-		var redis = redisConn.GetDatabase();
+                var redisHostname = Environment.GetEnvironmentVariable("REDIS_HOSTNAME");
+                var redisConn = OpenRedisConnection(redisHostname);
+                var redis = redisConn.GetDatabase();
                 var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
                 var dbUsername = Environment.GetEnvironmentVariable("DB_USERNAME");
                 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
                 var hostname = Environment.GetEnvironmentVariable("REDIS_HOST");
 
                 Console.WriteLine($"REDIS_HOSTNAME: {redisHostname}");
- 
-		var pgsql = OpenDbConnection($"Server={dbServer};Username={dbUsername};Password={dbPassword}");
+
+                var pgsql = OpenDbConnection($"Server={dbServer};Username={dbUsername};Password={dbPassword}");
 
                 // Keep alive is not implemented in Npgsql yet. This workaround was recommended:
                 // https://github.com/npgsql/npgsql/issues/1214#issuecomment-235828359
@@ -44,9 +44,10 @@ namespace Worker
                     Thread.Sleep(100);
 
                     // Reconnect redis if down
-                    if (redisConn == null || !redisConn.IsConnected) {
+                    if (redisConn == null || !redisConn.IsConnected)
+                    {
                         Console.WriteLine("Reconnecting Redis");
-                        redisConn = OpenRedisConnection("redis");
+                        redisConn = OpenRedisConnection(redisHostname);
                         redis = redisConn.GetDatabase();
                     }
                     string json = redis.ListLeftPopAsync("votes").Result;
@@ -114,46 +115,32 @@ namespace Worker
             return connection;
         }
 
-private static ConnectionMultiplexer OpenRedisConnection()
-{
-    string hostname = Environment.GetEnvironmentVariable("REDIS_HOSTNAME") ?? "localhost";
-    string password = Environment.GetEnvironmentVariable("REDIS_PASSWORD"); // Assuming password is optional
-
-    var configurationOptions = new ConfigurationOptions
-    {
-        EndPoints = { hostname },
-        Password = password,
-        AbortOnConnectFail = false,
-        // Additional configuration options as needed
-    };
-
-    Console.WriteLine($"Connecting to Redis at {hostname}");
-    while (true)
-    {
-        try
+        private static ConnectionMultiplexer OpenRedisConnection(string hostname)
         {
-            return ConnectionMultiplexer.Connect(configurationOptions);
+            string password = Environment.GetEnvironmentVariable("REDIS_PASSWORD"); // Assuming password is optional        
+
+            var configurationOptions = new ConfigurationOptions
+            {
+                EndPoints = { hostname },
+                Password = password,
+                AbortOnConnectFail = false,
+                // Additional configuration options as needed
+            };
+
+            Console.WriteLine($"Connecting to Redis at {hostname}");
+            while (true)
+            {
+                try
+                {
+                    return ConnectionMultiplexer.Connect(configurationOptions);
+                }
+                catch (RedisConnectionException)
+                {
+                    Console.Error.WriteLine("Waiting for Redis, retrying...");
+                    Thread.Sleep(1000); // Consider implementing a more sophisticated retry logic
+                }
+            }
         }
-        catch (RedisConnectionException)
-        {
-            Console.Error.WriteLine("Waiting for Redis, retrying...");
-            Thread.Sleep(1000); // Consider implementing a more sophisticated retry logic
-        }
-    }
-}
-
-
-
-
-
-
-
-        private static string GetIp(string hostname)
-            => Dns.GetHostEntryAsync(hostname)
-                .Result
-                .AddressList
-                .First(a => a.AddressFamily == AddressFamily.InterNetwork)
-                .ToString();
 
         private static void UpdateVote(NpgsqlConnection connection, string voterId, string vote)
         {
