@@ -82,47 +82,48 @@ namespace Worker
             }
         }
 
-        private static NpgsqlConnection OpenDbConnection(string connectionString)
+private static NpgsqlConnection OpenDbConnection(string connectionString)
+{
+    NpgsqlConnection connection = null;
+
+    while (true)
+    {
+        try
         {
-            NpgsqlConnection connection = null;
+            connection = new NpgsqlConnection(connectionString);
+            connection.Open();
+            Console.WriteLine("Connected to PostgreSQL.");
 
-            while (true)
+            // Ensure that the votes table exists
+            using (var command = connection.CreateCommand())
             {
-                try
-                {
-                    connection = new NpgsqlConnection(connectionString);
-                    connection.Open();
-                    Console.WriteLine("Connected to PostgreSQL.");
-
-                    // Ensure that the votes table exists
-                    using (var command = connection.CreateCommand())
-                    {
-                        command.CommandText = $"CREATE TABLE IF NOT EXISTS {_databaseName} (id VARCHAR(255) NOT NULL UNIQUE,vote VARCHAR(255) NOT NULL)"; // Use _databaseName
-                        command.ExecuteNonQuery();
-                        Console.WriteLine($"Database '{_databaseName}' created or already exists."); // Use _databaseName
-                    }
-
-                    break;
-                }
-                catch (SocketException)
-                {
-                    Console.Error.WriteLine("Waiting for PostgreSQL.");
-                    Thread.Sleep(1000);
-                }
-                catch (DbException ex)
-                {
-                    Console.Error.WriteLine($"Error connecting to PostgreSQL: {ex.Message}");
-                    Console.Error.WriteLine($"Connection string: {connectionString}");
-                    Thread.Sleep(1000);
-                }
-                finally
-                {
-                    connection?.Close();
-                }
+                command.CommandText = $"CREATE TABLE IF NOT EXISTS {_databaseName} (id VARCHAR(255) NOT NULL UNIQUE,vote VARCHAR(255) NOT NULL)"; // Use _databaseName
+                command.ExecuteNonQuery();
+                Console.WriteLine($"Database '{_databaseName}' created or already exists."); // Use _databaseName
             }
 
-            return connection;
+            break;
         }
+        catch (SocketException)
+        {
+            Console.Error.WriteLine("Waiting for PostgreSQL.");
+            Thread.Sleep(1000);
+        }
+        catch (DbException ex)
+        {
+            Console.Error.WriteLine($"Error connecting to PostgreSQL: {ex.Message}");
+            Console.Error.WriteLine($"Connection string: {connectionString}");
+            Thread.Sleep(1000);
+        }
+        finally
+        {
+            connection?.Close();
+        }
+    }
+
+    return connection;
+}
+
 
         private static ConnectionMultiplexer OpenRedisConnection(string hostname)
         {
