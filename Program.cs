@@ -28,7 +28,8 @@ namespace Worker
                 var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
                 var dbUsername = Environment.GetEnvironmentVariable("DB_USERNAME");
                 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
-                 _databaseName = Environment.GetEnvironmentVariable("DB_NAME"); // Assign value to _databaseName
+                // _databaseName = Environment.GetEnvironmentVariable("DB_NAME");// Assign value to _databaseName
+                _databaseName = "postgres";
                 var hostname = Environment.GetEnvironmentVariable("REDIS_HOST");
 
                 Console.WriteLine($"REDIS_HOSTNAME: {redisHostname}");
