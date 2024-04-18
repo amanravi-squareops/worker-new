@@ -93,6 +93,10 @@ private static NpgsqlConnection OpenDbConnection(string connectionString)
             connection = new NpgsqlConnection(connectionString);
             connection.Open();
             Console.WriteLine("Connected to PostgreSQL.");
+            // Inside the OpenDbConnection method, before executing the SQL command
+            Console.WriteLine($"Database name: {_databaseName}");
+            Console.WriteLine($"SQL statement: {command.CommandText}");
+
 
             // Ensure that the votes table exists
             using (var command = connection.CreateCommand())
