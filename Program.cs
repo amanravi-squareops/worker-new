@@ -13,7 +13,7 @@ namespace Worker
 {
     public class Program
     {
-        private static string _databaseName; // Declare databaseName at class level
+        private static string _databaseName = Environment.GetEnvironmentVariable("DB_NAME"); // Declare and assign databaseName at class level
 
         public static int Main(string[] args)
         {
@@ -28,8 +28,6 @@ namespace Worker
                 var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
                 var dbUsername = Environment.GetEnvironmentVariable("DB_USERNAME");
                 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
-                // _databaseName = Environment.GetEnvironmentVariable("DB_NAME");// Assign value to _databaseName
-                _databaseName = "postgres";
                 var hostname = Environment.GetEnvironmentVariable("REDIS_HOST");
 
                 Console.WriteLine($"REDIS_HOSTNAME: {redisHostname}");
@@ -83,49 +81,47 @@ namespace Worker
             }
         }
 
-private static NpgsqlConnection OpenDbConnection(string connectionString)
-{
-    NpgsqlConnection connection = null;
-
-    while (true)
-    {
-        try
+        private static NpgsqlConnection OpenDbConnection(string connectionString)
         {
-            connection = new NpgsqlConnection(connectionString);
-            connection.Open();
-            Console.WriteLine("Connected to PostgreSQL.");
-            // Inside the OpenDbConnection method, before executing the SQL command
-            Console.WriteLine($"Database name first: {_databaseName}");
-            
-            // Ensure that the votes table exists
-            using (var command = connection.CreateCommand())
+            NpgsqlConnection connection = null;
+
+            while (true)
             {
-                command.CommandText = $"CREATE TABLE IF NOT EXISTS votes (id VARCHAR(255) NOT NULL UNIQUE,vote VARCHAR(255) NOT NULL)"; // Use _databaseName
-                Console.WriteLine($"Database name: {_databaseName}");
-                Console.WriteLine($"SQL statement: {command.CommandText}");
-                command.ExecuteNonQuery();
-                Console.WriteLine($"Database '{_databaseName}' created or already exists."); // Use _databaseName
+                try
+                {
+                    connection = new NpgsqlConnection(connectionString);
+                    connection.Open();
+                    Console.WriteLine("Connected to PostgreSQL.");
+                    // Inside the OpenDbConnection method, before executing the SQL command
+                    Console.WriteLine($"Database name first: {_databaseName}");
+                    
+                    // Ensure that the votes table exists
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.CommandText = $"CREATE TABLE IF NOT EXISTS votes (id VARCHAR(255) NOT NULL UNIQUE,vote VARCHAR(255) NOT NULL)"; // Use _databaseName
+                        Console.WriteLine($"Database name: {_databaseName}");
+                        Console.WriteLine($"SQL statement: {command.CommandText}");
+                        command.ExecuteNonQuery();
+                        Console.WriteLine($"Database '{_databaseName}' created or already exists."); // Use _databaseName
+                    }
+
+                    break;
+                }
+                catch (SocketException)
+                {
+                    Console.Error.WriteLine("Waiting for PostgreSQL.");
+                    Thread.Sleep(1000);
+                }
+                catch (DbException ex)
+                {
+                    Console.Error.WriteLine($"Error connecting to PostgreSQL: {ex.Message}");
+                    Console.Error.WriteLine($"Connection string: {connectionString}");
+                    Thread.Sleep(1000);
+                }
             }
 
-            break;
+            return connection;
         }
-        catch (SocketException)
-        {
-            Console.Error.WriteLine("Waiting for PostgreSQL.");
-            Thread.Sleep(1000);
-        }
-        catch (DbException ex)
-        {
-            Console.Error.WriteLine($"Error connecting to PostgreSQL: {ex.Message}");
-            Console.Error.WriteLine($"Connection string: {connectionString}");
-            Thread.Sleep(1000);
-        }
-    }
-
-    return connection;
-}
-
-
 
         private static ConnectionMultiplexer OpenRedisConnection(string hostname)
         {
@@ -154,31 +150,30 @@ private static NpgsqlConnection OpenDbConnection(string connectionString)
             }
         }
 
-private static void UpdateVote(NpgsqlConnection connection, string voterId, string vote)
-{
-    var command = connection.CreateCommand();
-    try
-    {
-        command.CommandText = @"
-            INSERT INTO votes (id, vote) 
-            VALUES (@id, @vote) 
-            ON CONFLICT (id) DO UPDATE SET vote = @vote";
-        
-        command.Parameters.AddWithValue("@id", voterId);
-        command.Parameters.AddWithValue("@vote", vote);
-        
-        command.ExecuteNonQuery();
-        Console.WriteLine("Vote updated in PostgreSQL.");
-    }
-    catch (DbException ex)
-    {
-        Console.Error.WriteLine($"Error updating vote in PostgreSQL: {ex.Message}");
-    }
-    finally
-    {
-        command.Dispose();
-    }
-}
-
+        private static void UpdateVote(NpgsqlConnection connection, string voterId, string vote)
+        {
+            var command = connection.CreateCommand();
+            try
+            {
+                command.CommandText = @"
+                    INSERT INTO votes (id, vote) 
+                    VALUES (@id, @vote) 
+                    ON CONFLICT (id) DO UPDATE SET vote = @vote";
+                
+                command.Parameters.AddWithValue("@id", voterId);
+                command.Parameters.AddWithValue("@vote", vote);
+                
+                command.ExecuteNonQuery();
+                Console.WriteLine("Vote updated in PostgreSQL.");
+            }
+            catch (DbException ex)
+            {
+                Console.Error.WriteLine($"Error updating vote in PostgreSQL: {ex.Message}");
+            }
+            finally
+            {
+                command.Dispose();
+            }
+        }
     }
 }
