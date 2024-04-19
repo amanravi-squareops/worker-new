@@ -127,6 +127,57 @@ namespace Worker
             return connection;
         }
 
-        // Rest of your methods...
+      private static ConnectionMultiplexer OpenRedisConnection(string hostname)
+        {
+            string password = Environment.GetEnvironmentVariable("REDIS_PASSWORD"); // Assuming password is optional
+
+            var configurationOptions = new ConfigurationOptions
+            {
+                EndPoints = { hostname },
+                Password = password,
+                AbortOnConnectFail = false,
+                // Additional configuration options as needed
+            };
+
+            Console.WriteLine($"Connecting to Redis at {hostname}");
+            while (true)
+            {
+                try
+                {
+                    return ConnectionMultiplexer.Connect(configurationOptions);
+                }
+                catch (RedisConnectionException)
+                {
+                    Console.Error.WriteLine("Waiting for Redis, retrying...");
+                    Thread.Sleep(1000); // Consider implementing a more sophisticated retry logic
+                }
+            }
+        }
+
+        private static void UpdateVote(NpgsqlConnection connection, string voterId, string vote)
+        {
+            var command = connection.CreateCommand();
+            try
+            {
+                command.CommandText = @"
+                    INSERT INTO votes (id, vote) 
+                    VALUES (@id, @vote) 
+                    ON CONFLICT (id) DO UPDATE SET vote = @vote";
+                
+                command.Parameters.AddWithValue("@id", voterId);
+                command.Parameters.AddWithValue("@vote", vote);
+                
+                command.ExecuteNonQuery();
+                Console.WriteLine("Vote updated in PostgreSQL.");
+            }
+            catch (DbException ex)
+            {
+                Console.Error.WriteLine($"Error updating vote in PostgreSQL: {ex.Message}");
+            }
+            finally
+            {
+                command.Dispose();
+            }
+        }
     }
 }
