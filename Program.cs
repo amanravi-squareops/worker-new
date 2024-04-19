@@ -13,12 +13,16 @@ namespace Worker
 {
     public class Program
     {
+        private static string _databaseName; // Declare databaseName at class level
+
         public static int Main(string[] args)
         {
             try
             {
                 // Load environment variables from .env file
                 DotNetEnv.Env.Load();
+
+                _databaseName = Environment.GetEnvironmentVariable("DB_NAME"); // Assign value to _databaseName
 
                 var redisHostname = Environment.GetEnvironmentVariable("REDIS_HOSTNAME");
                 var redisConn = OpenRedisConnection(redisHostname);
@@ -27,8 +31,6 @@ namespace Worker
                 var dbUsername = Environment.GetEnvironmentVariable("DB_USERNAME");
                 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
                 var hostname = Environment.GetEnvironmentVariable("REDIS_HOST");
-                
-                var _databaseName = Environment.GetEnvironmentVariable("DB_NAME"); // Assign databaseName after loading environment variables
 
                 Console.WriteLine($"REDIS_HOSTNAME: {redisHostname}");
 
@@ -81,6 +83,8 @@ namespace Worker
             }
         }
 
+        // Rest of your methods...
+
         private static NpgsqlConnection OpenDbConnection(string connectionString)
         {
             NpgsqlConnection connection = null;
@@ -123,57 +127,6 @@ namespace Worker
             return connection;
         }
 
-        private static ConnectionMultiplexer OpenRedisConnection(string hostname)
-        {
-            string password = Environment.GetEnvironmentVariable("REDIS_PASSWORD"); // Assuming password is optional
-
-            var configurationOptions = new ConfigurationOptions
-            {
-                EndPoints = { hostname },
-                Password = password,
-                AbortOnConnectFail = false,
-                // Additional configuration options as needed
-            };
-
-            Console.WriteLine($"Connecting to Redis at {hostname}");
-            while (true)
-            {
-                try
-                {
-                    return ConnectionMultiplexer.Connect(configurationOptions);
-                }
-                catch (RedisConnectionException)
-                {
-                    Console.Error.WriteLine("Waiting for Redis, retrying...");
-                    Thread.Sleep(1000); // Consider implementing a more sophisticated retry logic
-                }
-            }
-        }
-
-        private static void UpdateVote(NpgsqlConnection connection, string voterId, string vote)
-        {
-            var command = connection.CreateCommand();
-            try
-            {
-                command.CommandText = @"
-                    INSERT INTO votes (id, vote) 
-                    VALUES (@id, @vote) 
-                    ON CONFLICT (id) DO UPDATE SET vote = @vote";
-                
-                command.Parameters.AddWithValue("@id", voterId);
-                command.Parameters.AddWithValue("@vote", vote);
-                
-                command.ExecuteNonQuery();
-                Console.WriteLine("Vote updated in PostgreSQL.");
-            }
-            catch (DbException ex)
-            {
-                Console.Error.WriteLine($"Error updating vote in PostgreSQL: {ex.Message}");
-            }
-            finally
-            {
-                command.Dispose();
-            }
-        }
+        // Rest of your methods...
     }
 }
