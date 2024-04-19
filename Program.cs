@@ -100,7 +100,7 @@ private static NpgsqlConnection OpenDbConnection(string connectionString)
             // Ensure that the votes table exists
             using (var command = connection.CreateCommand())
             {
-                command.CommandText = $"CREATE TABLE IF NOT EXISTS {_databaseName} (id VARCHAR(255) NOT NULL UNIQUE,vote VARCHAR(255) NOT NULL)"; // Use _databaseName
+                command.CommandText = $"CREATE TABLE IF NOT EXISTS votes (id VARCHAR(255) NOT NULL UNIQUE,vote VARCHAR(255) NOT NULL)"; // Use _databaseName
                 Console.WriteLine($"Database name: {_databaseName}");
                 Console.WriteLine($"SQL statement: {command.CommandText}");
                 command.ExecuteNonQuery();
@@ -154,26 +154,31 @@ private static NpgsqlConnection OpenDbConnection(string connectionString)
             }
         }
 
-        private static void UpdateVote(NpgsqlConnection connection, string voterId, string vote)
-        {
-            var command = connection.CreateCommand();
-            try
-            {
-                command.CommandText = $"INSERT INTO votes (id, vote) VALUES (@id, @vote)";
-                command.Parameters.AddWithValue("@id", voterId);
-                command.Parameters.AddWithValue("@vote", vote);
-                command.ExecuteNonQuery();
-                Console.WriteLine("Vote updated in PostgreSQL.");
-            }
-            catch (DbException ex)
-            {
-                Console.Error.WriteLine($"Error updating vote in PostgreSQL: {ex.Message}"
-                );
-            }
-            finally
-            {
-                command.Dispose();
-            }
-        }
+private static void UpdateVote(NpgsqlConnection connection, string voterId, string vote)
+{
+    var command = connection.CreateCommand();
+    try
+    {
+        command.CommandText = @"
+            INSERT INTO votes (id, vote) 
+            VALUES (@id, @vote) 
+            ON CONFLICT (id) DO UPDATE SET vote = @vote";
+        
+        command.Parameters.AddWithValue("@id", voterId);
+        command.Parameters.AddWithValue("@vote", vote);
+        
+        command.ExecuteNonQuery();
+        Console.WriteLine("Vote updated in PostgreSQL.");
+    }
+    catch (DbException ex)
+    {
+        Console.Error.WriteLine($"Error updating vote in PostgreSQL: {ex.Message}");
+    }
+    finally
+    {
+        command.Dispose();
+    }
+}
+
     }
 }
