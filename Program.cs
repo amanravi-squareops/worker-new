@@ -13,8 +13,6 @@ namespace Worker
 {
     public class Program
     {
-        private static string _databaseName = Environment.GetEnvironmentVariable("DB_NAME"); // Declare and assign databaseName at class level
-
         public static int Main(string[] args)
         {
             try
@@ -29,6 +27,8 @@ namespace Worker
                 var dbUsername = Environment.GetEnvironmentVariable("DB_USERNAME");
                 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
                 var hostname = Environment.GetEnvironmentVariable("REDIS_HOST");
+                
+                var _databaseName = Environment.GetEnvironmentVariable("DB_NAME"); // Assign databaseName after loading environment variables
 
                 Console.WriteLine($"REDIS_HOSTNAME: {redisHostname}");
 
